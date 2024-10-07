@@ -34,8 +34,8 @@ document.getElementById('province').addEventListener('change', function() {
         // add the options
         data.reports.forEach(report => {
             let option = document.createElement('option');
-            option.value = report;
-            option.text = report;
+            option.value = report[0];
+            option.text = report[1];
             report_select.append(option);
         });
 

@@ -14,8 +14,8 @@
     <div class="form-floating mb-3">
         <select class="form-select" id="province" name="province">
             <option value="null" disabled selected>Provincia</option>
-            {% for province in provinces %}
-            <option value="{{ province }}">{{ province }}</option>
+            {% for province, provinceCaps in provinces.items() %}
+            <option value="{{ province }}">{{ provinceCaps }}</option>
             {% endfor %}
         </select>
         <label for="province">Provincia</label>

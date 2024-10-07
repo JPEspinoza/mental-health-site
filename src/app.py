@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, Response
+from flask import Flask, render_template
 import pandas
 import geopandas
 import sqlite3
@@ -31,7 +31,7 @@ def map_home():
     having sum(data.value) > 0
     """)
     provinces = cursor.fetchall()
-    provinces = [provinces[0] for provinces in provinces]
+    provinces = {province[0]: province[0].title() for province in provinces}
 
     # generate preview map
     map = cursor.execute("select geometry from commune where province = 'SANTIAGO'")
@@ -51,7 +51,7 @@ def map_home():
 def map_index_reports(province):
     # return list of reports for the selected province
     cursor.execute("""
-    select report.name
+    select report.name, report.description
     from report
     join data on data.report_id = report.id
     join commune on commune.id = data.commune_id
@@ -59,12 +59,15 @@ def map_index_reports(province):
         commune.province = ? AND
         data.year is not null
     group by report.id
-    having sum(data.value) > 0;
+    having sum(data.value) > 0
+    order by report.name;
     """, (province,))
 
     reports = cursor.fetchall()
 
-    return json.dumps({"reports": reports})
+    data = json.dumps({"reports": reports})
+
+    return data
 
 @app.route("/map_index_years/<province>/<report>/")
 def map_index_years(province, report):
