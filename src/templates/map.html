@@ -9,33 +9,39 @@
 }
 </style>
 
+<script>
+    let year_min = {{year_min}};
+    let year_max = {{year_max}};
+</script>
+
 <div class="custom position-fixed bg-white p-4 rounded shadow">
     <p class="h2"> Constructor de mapa </p>
-    <div class="form-floating mb-3">
-        <select class="form-select" id="province" name="province">
-            <option value="null" disabled selected>Provincia</option>
-            {% for province, provinceCaps in provinces.items() %}
-            <option value="{{ province }}">{{ provinceCaps }}</option>
-            {% endfor %}
-        </select>
-        <label for="province">Provincia</label>
-    </div>
 
     <div class="form-floating mb-3">
-        <select class="form-select" disabled="disabled" id="report" name="report">
+        <select class="form-select filter" id="report" name="report">
             <option value="null" disabled selected>Reporte</option>
+            {% for report, description in reports.items() %}
+            <option value="{{ report }}">{{ description }}</option>
+            {% endfor %}
         </select>
         <label for="report">Reporte</label>
     </div>
 
     <div class="form-floating mb-3">
-        <select class="form-select" disabled="disabled" id="year" name="year">
-            <option value="null" disabled selected>Año</option>
+        <select class="form-select filter" id="region" name="region">
+            <option value="null" selected>Región</option>
+            {% for region in regions %}
+            <option value="{{ region }}">{{ region|title }}</option>
+            {% endfor %}
         </select>
-        <label for="year">Año</label>
+        <label for="region">Región</label>
     </div>
 
-    <div>
+    <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-n1">
+        <div class="" id="year"></div>
+    </div>
+
+    <div class="row">
         <button class="btn btn-primary w-100" id="submit" disabled>Construir mapa</button>
     </div>
 </div>

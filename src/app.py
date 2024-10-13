@@ -1,4 +1,4 @@
-from flask import Flask, render_template, Response
+from flask import Flask, render_template
 import pandas
 import geopandas
 import sqlite3
@@ -12,7 +12,8 @@ from matplotlib.figure import Figure
 app = Flask(__name__)
 
 # start database connection
-conn = sqlite3.connect("db.sqlite3")
+# we ignore thread conflicts since we are read-only
+conn = sqlite3.connect("file:db.sqlite3?mode=ro", check_same_thread=False, uri=True)
 cursor = conn.cursor()
 
 # months
@@ -35,22 +36,34 @@ months = [
 def index():
     return render_template("index.html")
 
+
 @app.route("/map_home/")
 def map_home():
     """
     Generates the filter list and renders the map.html template
     """
 
-    # get list of provinces with data
+    # get list of reports
+    # make dict of reports {name: description}
     cursor.execute("""
-    select province
-    from commune
-    join data on commune.id = data.commune_id
-    group by province
-    having sum(data.value) > 0
+    select name, description from report
     """)
-    provinces = cursor.fetchall()
-    provinces = {province[0]: province[0].title() for province in provinces}
+    reports = cursor.fetchall()
+    reports = { reports[i][0]: reports[i][1] for i in range(len(reports)) }
+
+    # get list of regions
+    cursor.execute("""
+    select distinct region from commune where region != 'ZONA SIN DEMARCAR';
+    """)
+    regions = [region[0] for region in cursor.fetchall()]
+
+    # get list of years
+    cursor.execute("""
+    select min(year), max(year) from data
+    """)
+    years = cursor.fetchall()
+    year_min = years[0][0]
+    year_max = years[0][1]
 
     # generate preview map
     map = cursor.execute("select geometry from commune where province = 'SANTIAGO'")
@@ -64,134 +77,64 @@ def map_home():
 
     rendered_map = figure._repr_html_()
 
-    return render_template("map.html", provinces=provinces, map=rendered_map)
+    return render_template("map.html", reports=reports, regions=regions, year_min=year_min, year_max=year_max, map=rendered_map)
 
-@app.route("/map_index_reports/<province>/")
-def map_index_reports(province: str):
-    """
-    returns a list of all the valid reports for the selected province
-    """
 
-    cursor.execute("""
-    select report.name, report.description
-    from report
-    join data on data.report_id = report.id
-    join commune on commune.id = data.commune_id
-    where 
-        commune.province = ? AND
-        data.year is not null
-    group by report.id
-    having sum(data.value) > 0
-    order by report.name;
-    """, (province,))
-
-    reports = cursor.fetchall()
-
-    data = json.dumps({"reports": reports})
-
-    return data
-
-@app.route("/map_index_years/<province>/<report>/")
-def map_index_years(province: str, report: str):
-    """
-    return list of years for the selected report and province
-    """
-    cursor.execute("""
-    select data.year
-    from data
-    join commune on data.commune_id = commune.id
-    join report on data.report_id = report.id
-    where
-        commune.province = ? AND
-        report.name = ? AND
-        data.year is not null
-    group by year
-    having sum(data.value) > 0;
-    """, (province, report,))
-
-    years = cursor.fetchall()
-
-    return json.dumps({"years": years})
-
-@app.route("/map/<province>/<report>/<year>/")
-def map(report: str, year: int, province: str):
+@app.route("/map/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/")
+def map(report: str, region: str, year_low: int, year_high: int):
     """
     Called from map.html, used to generate the map which is sent dynamically to the client
     """
     
     cursor.execute("""
-    select commune.name, SUM(value), commune.geometry
+    select commune.name, sum(data.value), data.cohort, commune.geometry
     from data
     join report on data.report_id = report.id
     join commune on data.commune_id = commune.id
     where
         report.name = ? and
-        data.year = ? and
-        province like ?
-    group by commune.id;
-    """, (report, year, province))
-    communes = cursor.fetchall()
+        data.year >= ? and
+        data.year <= ? and
+        commune.region = ?
+    group by commune.name, data.cohort;
+    """, (report, year_low, year_high, region))
+    data = cursor.fetchall()
 
     # format the data into a dataframe
-    dataframe = pandas.DataFrame(communes, columns=['name', 'count', 'geometry'])
-    dataframe['geometry'] = dataframe['geometry'].apply(wkb.loads) # type: ignore
-    geodataframe = geopandas.GeoDataFrame(data=dataframe, geometry='geometry', crs='EPSG:3857') # type: ignore
+    data = pandas.DataFrame(data, columns=['name', 'count', 'cohort', 'geometry'])
+
+    # prepare geometry
+    geometry = data.__deepcopy__()
+    # deduplicate communes
+    geometry.drop_duplicates(subset='name', inplace=True)
+    # drop extra columns
+    geometry = geometry[["name", "geometry"]]
+    # load binary into geometry
+    geometry['geometry'] = geometry['geometry'].apply(wkb.loads) # type: ignore
+
+    # create total column per name
+    total = data[["name", "count"]].groupby('name').sum()
+    # rename count to total
+    total.rename(columns={'count': 'Total'}, inplace=True)
+
+    # explode cohorts into columns
+    data = data.pivot(index='name', columns='cohort', values='count')
+
+    # add geometry per commune to data
+    data = pandas.merge(geometry, data, on="name")
+
+    # add total
+    data = pandas.merge(data, total, on="name")
+
+    # remove nulls with 0
+    data.fillna(0, inplace=True)
+
+    # prepare geodataframe
+    geodataframe = geopandas.GeoDataFrame(data=data, geometry='geometry', crs='EPSG:3857') # type: ignore
 
     # create the heatmap into a folium map
     figure = folium.Figure(width="100%", height="100%")
-    map = geodataframe.explore(column='count', cmap='OrRd', legend=True)
+    map = geodataframe.explore(column='Total', cmap='OrRd', legend=True)
     figure.add_child(map)
 
     return figure._repr_html_()
-
-@app.route("/graph_index/")
-def graph_home():
-    """
-    called from graph.html, returns an index of all valid reports
-    """
-
-    cursor.execute("""
-    select name from report where name like '%Month%';
-    """)
-
-    reports = [{"name": row[0]} for row in cursor.fetchall()]
-
-    return render_template('graph.html', reports=reports)
-
-@app.route('/graph_per_month/<report>/<province>/<year>/')
-def graph_per_month(report: str, province: str, year: int):
-    cursor.execute("""
-        select cohort, sum(data.value)
-        from data
-        join report on data.report_id = report.id
-        join commune on data.commune_id = commune.id
-        where
-            report.name = ? AND
-            commune.province = ? and
-            data.year = ?
-        group by cohort;
-    """, (report, province, year))
-    data = cursor.fetchall()
-
-    data = pandas.DataFrame(data, columns=["cohort", "value"])
-
-    # sort by month
-    data['cohort'] = pandas.Categorical(data['cohort'], categories=months, ordered=True)
-    data = data.sort_values('cohort')
-
-    # set cohort to index
-    data = data.set_index('cohort')
-
-    # make storage in memory
-    output = io.BytesIO()
-
-    # plot data into png
-    fig = Figure(figsize=(10, 8))
-    ax = fig.add_subplot(111)
-    ax.title.set_text(f"Consultas por mes en {province}")
-    ax.axes.set_xlabel("Mes") # type: ignore
-    ax.axes.set_ylabel("Consultas") # type: ignore
-    data.plot(kind='bar', ax=ax)
-    FigureCanvas(fig).print_png(output)
-
-    return output.getvalue()

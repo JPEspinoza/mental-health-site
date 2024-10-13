@@ -1,93 +1,59 @@
-// this file contains the javascript used to request the map to the backend and display it on the page
-let report_placeholder = document.createElement('option');
-report_placeholder.text = "Reporte";
-report_placeholder.value = "null";
-report_placeholder.disabled = true;
-report_placeholder.selected = true;
-
-let year_placeholder = document.createElement('option');
-year_placeholder.text = "Año";
-year_placeholder.value = "null";
-year_placeholder.disabled = true;
-year_placeholder.selected = true;
-
-let report_select = document.getElementById('report');
-let year_select = document.getElementById('year');
-let submit = document.getElementById('submit');
-
-// fill report list when province is selected
-document.getElementById('province').addEventListener('change', function() {
-    let province = document.getElementById('province').value;
-
-    // clear the options
-    year_select.disabled = true;
-    year_select.innerHTML = "";
-    year_select.append(year_placeholder);
-    report_select.innerHTML = "";
-    report_select.append(report_placeholder);
-    submit.disabled = true;
-    
-    // make a request to the backend
-    fetch(`/map_index_reports/${province}/`)
-    .then(response => response.json())
-    .then(data => {
-        // add the options
-        data.reports.forEach(report => {
-            let option = document.createElement('option');
-            option.value = report[0];
-            option.text = report[1];
-            report_select.append(option);
-        });
-
-        report_select.disabled = false;
-    });
+// start slider
+var year_slider = document.getElementById('year');
+noUiSlider.create(year_slider, {
+    start: [year_min, year_max],
+    connect: true,
+    step: 1,
+    range: {
+        'min': year_min,
+        'max': year_max
+    },
+    pips: {
+        mode: 'steps',
+        density: 10
+    }, 
 });
 
-// fill year list when report is selected
-document.getElementById('report').addEventListener('change', function() {
-    let province = document.getElementById('province').value;
-    let report = document.getElementById('report').value;
+// get submit button
+var submit = document.getElementById('submit');
 
-    // clear the options
-    year_select.innerHTML = "";
-    year_select.append(year_placeholder);
-    submit.disabled = true;
+// enable submit when report and region are selected
+var report_select = document.getElementById('report');
+var region_select = document.getElementById('region');
 
-    // make a request to the backend
-    fetch(`/map_index_years/${province}/${report}/`)
-    .then(response => response.json())
-    .then(data => {
-        // add the options
-        data.years.forEach(year => {
-            let option = document.createElement('option');
-            option.value = year;
-            option.text = year;
-            year_select.append(option);
-        });
-
-        year_select.disabled = false;
-    });
+report_select.addEventListener("change", function() {
+    if (report_select.value != "null" && region_select.value != "null") {
+        submit.disabled = false;
+    } else {
+        submit.disabled = true;
+    }
 });
 
-// enable submit button when year is selected
-document.getElementById('year').addEventListener('change', function() {
-    submit.disabled = false;
+region_select.addEventListener("change", function() {
+    if (report_select.value != "null" && region_select.value != "null") {
+        submit.disabled = false;
+    } else {
+        submit.disabled = true;
+    }
 });
 
 // request map when submit button is clicked
 submit.addEventListener('click', function() {
     // get the values of the inputs
-    let province = document.getElementById('province').value;
-    let report = document.getElementById('report').value;
-    let year = document.getElementById('year').value;
+    let report = report_select.value;
+    let region = document.getElementById("region").value;
+    let year = year_slider.noUiSlider.get(true);
+    let year_low = year[0]
+    let year_high = year[1]
 
-    submit.disabled = true;
+    submit.disabled = true
 
     // make a request to the backend
-    fetch(`/map/${province}/${report}/${year}/`)
+    fetch(`/map/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/`)
     .then(response => response.text())
     .then(data => {
         let map = document.getElementById('map');
         map.innerHTML = data;
+        submit.disabled = false;
     });
 });
