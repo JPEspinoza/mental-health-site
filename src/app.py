@@ -1,13 +1,9 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, redirect
 import pandas
 import geopandas
 import sqlite3
-import json
 from shapely import wkb
 import folium
-import io
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-from matplotlib.figure import Figure
 
 app = Flask(__name__)
 
@@ -16,25 +12,9 @@ app = Flask(__name__)
 conn = sqlite3.connect("file:db.sqlite3?mode=ro", check_same_thread=False, uri=True)
 cursor = conn.cursor()
 
-# months
-months = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre"
-]
-
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return redirect("/map_home/")
 
 
 @app.route("/map_home/")
@@ -66,7 +46,7 @@ def map_home():
     year_max = years[0][1]
 
     # generate preview map
-    map = cursor.execute("select geometry from commune where province = 'SANTIAGO'")
+    map = cursor.execute("select geometry from commune where region = 'REGION METROPOLITANA DE SANTIAGO'")
     dataframe = pandas.DataFrame(map, columns=['geometry'])
     dataframe['geometry'] = dataframe['geometry'].apply(wkb.loads) # type: ignore
     geodataframe = geopandas.GeoDataFrame(data=dataframe, geometry='geometry', crs='EPSG:3857') # type: ignore
@@ -102,6 +82,9 @@ def map(report: str, region: str, year_low: int, year_high: int):
 
     # format the data into a dataframe
     data = pandas.DataFrame(data, columns=['name', 'count', 'cohort', 'geometry'])
+
+    if(data.empty):
+        return render_template("empty.html")
 
     # prepare geometry
     geometry = data.__deepcopy__()
