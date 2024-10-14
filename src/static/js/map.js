@@ -30,6 +30,7 @@ const submit_spinner = document.getElementById('submit_spinner');
 const submit = document.getElementById('submit');
 const report_select = document.getElementById('report');
 const region_select = document.getElementById('region');
+const normalize_checkbox = document.getElementById('normalize');
 const map = document.getElementById('map');
 
 // enable submit when both selects have a value
@@ -57,6 +58,7 @@ submit.addEventListener('click', function() {
     let year = year_slider.noUiSlider.get(true);
     let year_low = year[0];
     let year_high = year[1];
+    let normalize = normalize_checkbox.checked;
 
     // show spinner
     submit_spinner.classList.remove("d-none");
@@ -69,7 +71,7 @@ submit.addEventListener('click', function() {
     map.appendChild(map_spinner);
 
     // make a request to the backend
-    fetch(`/map/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/`)
+    fetch(`/map/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}`)
     .then(response => response.text())
     .then(data => {
         // show map

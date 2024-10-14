@@ -60,14 +60,14 @@ def map_home():
     return render_template("map.html", reports=reports, regions=regions, year_min=year_min, year_max=year_max, map=rendered_map)
 
 
-@app.route("/map/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/")
-def map(report: str, region: str, year_low: int, year_high: int):
+@app.route("/map/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>")
+def map(report: str, region: str, year_low: int, year_high: int, normalize: str):
     """
     Called from map.html, used to generate the map which is sent dynamically to the client
     """
-    
+
     cursor.execute("""
-    select commune.name, sum(data.value), data.cohort, commune.geometry
+    select commune.name, commune.population, sum(data.value), data.cohort, commune.geometry
     from data
     join report on data.report_id = report.id
     join commune on data.commune_id = commune.id
@@ -81,24 +81,25 @@ def map(report: str, region: str, year_low: int, year_high: int):
     data = cursor.fetchall()
 
     # format the data into a dataframe
-    data = pandas.DataFrame(data, columns=['name', 'count', 'cohort', 'geometry'])
+    data = pandas.DataFrame(data, columns=['name', 'population', 'count', 'cohort', 'geometry'])
 
     if(data.empty):
         return render_template("empty.html")
 
     # prepare geometry
-    geometry = data.__deepcopy__()
+    geometry = data.copy(deep=True)
     # deduplicate communes
-    geometry.drop_duplicates(subset='name', inplace=True)
+    geometry = geometry.drop_duplicates(subset='name')
     # drop extra columns
     geometry = geometry[["name", "geometry"]]
     # load binary into geometry
     geometry['geometry'] = geometry['geometry'].apply(wkb.loads) # type: ignore
 
-    # create total column per name
-    total = data[["name", "count"]].groupby('name').sum()
-    # rename count to total
+    # create total and per capita column per name
+    total = data[["name", "count", "population"]].groupby('name').sum()
     total.rename(columns={'count': 'Total'}, inplace=True)
+    total['Per capita'] = total['Total'] * 10000 / total['population']
+    total.drop(columns='population', inplace=True)
 
     # explode cohorts into columns
     data = data.pivot(index='name', columns='cohort', values='count')
@@ -115,9 +116,18 @@ def map(report: str, region: str, year_low: int, year_high: int):
     # prepare geodataframe
     geodataframe = geopandas.GeoDataFrame(data=data, geometry='geometry', crs='EPSG:3857') # type: ignore
 
+    if(normalize == "true"):
+        color_column = "Per capita"
+    else:
+        color_column = "Total"
+
     # create the heatmap into a folium map
     figure = folium.Figure(width="100%", height="100%")
-    map = geodataframe.explore(column='Total', cmap='OrRd', legend=True)
+    map = geodataframe.explore(
+        column=color_column, 
+        cmap='plasma', 
+        legend=True,
+    )
     figure.add_child(map)
 
     return figure._repr_html_()
