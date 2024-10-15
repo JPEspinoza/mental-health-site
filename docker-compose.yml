@@ -1,7 +1,7 @@
 services:
   mental:
     build: .
-    image: mental.espi.moe/mental:r4
+    image: mental.espi.moe/mental:r5
     restart: always
     ports:
       - "127.0.0.1:9000:9000"

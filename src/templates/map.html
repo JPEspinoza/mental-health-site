@@ -25,15 +25,11 @@
             {% endfor %}
         </select>
         <label for="report">Reporte</label>
-        <div class="form-check mt-1">
-            <input type="checkbox" class="form-check-input filter" id="normalize" name="normalize">
-            <label class="form-check-label" for="normalize">Normalizar</label>
-        </div>
     </div>
 
     <div class="form-floating mb-3">
         <select class="form-select filter" id="region" name="region">
-            <option value="null" selected>Región</option>
+            <option value="null" disabled selected>Región</option>
             {% for region in regions %}
             <option value="{{ region }}">{{ region|title }}</option>
             {% endfor %}
@@ -42,13 +38,28 @@
     </div>
 
     <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-n1">
-        <div class="" id="year"></div>
+        <div id="year"></div>
     </div>
 
-    <button class="btn btn-primary w-100" id="submit" disabled>
-        <span class="spinner-border spinner-border-sm d-none" id="submit_spinner"></span>
-        Construir mapa
-    </button>
+    <div class="form-floating d-none">
+        <select class="form-select filter" disabled id="cohort" name="cohort">
+            <option value="null" disabled selected>Cohorte</option>
+        </select>
+        <label for="region">Cohorte</label>
+    </div>
+
+    <div class="container">
+        <div class="row justify-content-between align-items-center">
+            <div class="form-check col-auto">
+                <input type="checkbox" class="form-check-input filter" id="normalize" name="normalize">
+                <label class="form-check-label" for="normalize">Normalizar</label>
+            </div>
+            <div class="col-auto">
+                <a class="btn btn-primary" onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.getElementById('map').outerHTML)" href="#" download="page.html">Descargar mapa</a>
+            </div>
+        </div>
+
+    </div>
 </div>
 
 <div id="map" class="w-100 vh-100"> {{map|safe}} </div>
