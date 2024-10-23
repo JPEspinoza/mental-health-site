@@ -13,12 +13,7 @@ conn = sqlite3.connect("file:db.sqlite3?mode=ro", check_same_thread=False, uri=T
 cursor = conn.cursor()
 
 @app.route("/")
-def index():
-    return redirect("/map_home/")
-
-
-@app.route("/map_home/")
-def map_home():
+def map():
     """
     Generates the filter list and renders the map.html template
     """
@@ -60,8 +55,8 @@ def map_home():
     return render_template("map.html", reports=reports, regions=regions, year_min=year_min, year_max=year_max, map=rendered_map)
 
 
-@app.route("/map/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>")
-def map(report: str, region: str, year_low: int, year_high: int, normalize: str):
+@app.route("/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>")
+def map_report(report: str, region: str, year_low: int, year_high: int, normalize: str):
     """
     Called from map.html, used to generate the map which is sent dynamically to the client
     """

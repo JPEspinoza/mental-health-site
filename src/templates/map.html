@@ -1,69 +1,92 @@
-{% extends "base.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="en">
 
-<style>
-.custom {
-    top: 10px;
-    left: 10px;
-    z-index: 1000;
-}
-</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %} {% endblock %}</title>
 
-<script>
-    let year_min = {{year_min}};
-    let year_max = {{year_max}};
-</script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/nouislider.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+</head>
 
-<div class="custom position-fixed bg-white p-4 rounded shadow">
-    <p class="h2"> Constructor de mapa </p>
+<body>
+    <style>
+        .custom {
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            width: 50rem;
+            max-width: calc(100% - 20px);
+        }
+    </style>
 
-    <div class="form-floating mb-3">
-        <select class="form-select filter" id="report" name="report">
-            <option value="null" disabled selected>Reporte</option>
-            {% for report, description in reports.items() %}
-            <option value="{{ report }}">{{ description }}</option>
-            {% endfor %}
-        </select>
-        <label for="report">Reporte</label>
-    </div>
+    <script>
+        let year_min = {{ year_min }};
+        let year_max = {{ year_max }};
+    </script>
 
-    <div class="form-floating mb-3">
-        <select class="form-select filter" id="region" name="region">
-            <option value="null" disabled selected>Región</option>
-            {% for region in regions %}
-            <option value="{{ region }}">{{ region|title }}</option>
-            {% endfor %}
-        </select>
-        <label for="region">Región</label>
-    </div>
-
-    <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-n1">
-        <div id="year"></div>
-    </div>
-
-    <div class="form-floating d-none">
-        <select class="form-select filter" disabled id="cohort" name="cohort">
-            <option value="null" disabled selected>Cohorte</option>
-        </select>
-        <label for="region">Cohorte</label>
-    </div>
-
-    <div class="container">
-        <div class="row justify-content-between align-items-center">
-            <div class="form-check col-auto">
-                <input type="checkbox" class="form-check-input filter" id="normalize" name="normalize">
-                <label class="form-check-label" for="normalize">Normalizar</label>
-            </div>
-            <div class="col-auto">
-                <a class="btn btn-primary" onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.getElementById('map').outerHTML)" href="#" download="page.html">Descargar mapa</a>
-            </div>
+    <div class="custom position-fixed bg-white p-4 rounded shadow">
+        <div class="navbar">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTarget"> 
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <p class="h2"> Constructor de Mapa </p>
         </div>
 
+        <div id="collapseTarget" class="collapse show">
+            <div class="form-floating mb-3">
+                <select class="form-select filter" id="report" name="report">
+                    <option value="null" disabled selected>Reporte</option>
+                    {% for report, description in reports.items() %}
+                    <option value="{{ report }}">{{ description }}</option>
+                    {% endfor %}
+                </select>
+                <label for="report">Reporte</label>
+            </div>
+
+            <div class="form-floating mb-3">
+                <select class="form-select filter" id="region" name="region">
+                    <option value="null" disabled selected>Región</option>
+                    {% for region in regions %}
+                    <option value="{{ region }}">{{ region|title }}</option>
+                    {% endfor %}
+                </select>
+                <label for="region">Región</label>
+            </div>
+
+            <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-0">
+                <div id="year"></div>
+            </div>
+
+            <div class="form-floating d-none">
+                <select class="form-select filter" disabled id="cohort" name="cohort">
+                    <option value="null" disabled selected>Cohorte</option>
+                </select>
+                <label for="region">Cohorte</label>
+            </div>
+
+            <div class="container">
+                <div class="row justify-content-between align-items-center">
+                    <div class="col-auto z-1">
+                        <input type="checkbox" class="btn-check filter" id="normalize" name="normalize">
+                        <label class="btn btn-outline-primary" for="normalize">Normalizar</label>
+                    </div>
+                    <div class="col-auto z-1">
+                        <a class="btn btn-primary"
+                            onclick="this.href='data:text/html;charset=UTF-8,'+encodeURIComponent(document.getElementById('map').outerHTML)"
+                            href="#" download="page.html">Descargar mapa</a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<div id="map" class="w-100 vh-100"> {{map|safe}} </div>
+    <div id="map" class="w-100 vh-100"> {{map|safe}} </div>
 
-<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/nouislider.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body>
 
-{% endblock %}
+</html>

@@ -50,7 +50,7 @@ function update() {
     map.appendChild(map_spinner);
 
     // make a request to the backend
-    fetch(`/map/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}`)
+    fetch(`/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}`)
     .then(response => response.text())
     .then(data => {
         // show map
