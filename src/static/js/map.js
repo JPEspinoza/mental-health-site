@@ -1,18 +1,19 @@
 // start slider
 const year_slider = document.getElementById('year');
 noUiSlider.create(year_slider, {
-    start: [year_max - 1, year_max],
+    start: [2022, 2024],
     connect: true,
     step: 1,
     range: {
-        'min': year_min,
-        'max': year_max
+        'min': 2021,
+        'max': 2025
     },
     pips: {
         mode: 'steps',
         density: 10
-    }, 
+    }
 });
+year_slider.noUiSlider.disable()
 
 // map spinner
 const map_spinner = document.createElement('div');
@@ -28,8 +29,15 @@ const filters = document.getElementsByClassName('filter');
 
 const report_select = document.getElementById('report');
 const region_select = document.getElementById('region');
+const category_select = document.getElementById('category')
 const normalize_checkbox = document.getElementById('normalize');
 const map = document.getElementById('map');
+
+const default_option = document.createElement('option');
+default_option.innerHTML = "Seleccionar"
+default_option.value = "null";
+default_option.disabled = true;
+default_option.selected = true;
 
 function update() {
     if(report_select.value == "null" || region_select.value == "null") {
@@ -50,11 +58,11 @@ function update() {
     map.appendChild(map_spinner);
 
     // make a request to the backend
-    fetch(`/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}`)
-    .then(response => response.text())
+    fetch(`/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}/`)
+    .then(response => response.json())
     .then(data => {
         // show map
-        map.innerHTML = data;
+        map.innerHTML = data["map"];
     });
 }
 
@@ -63,3 +71,39 @@ year_slider.noUiSlider.on('end', update);
 
 // whenever the user changes a filter, check if we are ready to request a map
 Array.from(filters).forEach(filter => filter.addEventListener("change", update));
+
+// whenever the category is selected, clear all inputs and refresh the available reports and year slider
+function update_categories() {
+    let category = category_select.value;
+    report_select.value = "null";
+
+    fetch(`/category=${category}/`)
+        .then(response => response.json())
+        .then(data => {
+            year_min = data["year_min"];
+            year_max = data["year_max"];
+            reports = data["reports"];
+
+            // add the years to the slider
+            year_slider.noUiSlider.updateOptions({
+                range: {
+                    'min': year_min,
+                    'max': year_max
+                },
+            });
+            year_slider.noUiSlider.enable()
+
+            // add reports
+            report_select.innerHTML = "";
+            report_select.appendChild(default_option);
+            reports.forEach(report => {
+                let option = document.createElement('option');
+                option.value = report[0];
+                option.innerHTML = report[1];
+                report_select.appendChild(option);
+            });
+            report_select.disabled = false;
+        }
+    );
+}
+document.getElementById("category").addEventListener("change", update_categories)

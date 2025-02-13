@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %} {% endblock %}</title>
+    <title>Mapa Salud Mental</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/nouislider.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
@@ -21,11 +21,6 @@
         }
     </style>
 
-    <script>
-        let year_min = {{ year_min }};
-        let year_max = {{ year_max }};
-    </script>
-
     <div class="custom position-fixed bg-white p-4 rounded shadow">
         <div class="navbar">
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTarget"> 
@@ -36,13 +31,20 @@
 
         <div id="collapseTarget" class="collapse show">
             <div class="form-floating mb-3">
-                <select class="form-select filter" id="report" name="report">
-                    <option value="null" disabled selected>Reporte</option>
-                    {% for report, description in reports.items() %}
-                    <option value="{{ report }}">{{ description }}</option>
-                    {% endfor %}
-                </select>
-                <label for="report">Reporte</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="null" disabled selected>Categoria</option>
+                        {% for category in categories %}
+                        <option value="{{ category }}">{{ category|title }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="type">Categoria</label>
+            </div>
+
+            <div class="mb-3 form-floating">
+                    <select class="form-select filter" id="report" name="report" disabled>
+                        <option value="null" disabled selected>Reporte</option>
+                    </select>
+                    <label for="report">Reporte</label>
             </div>
 
             <div class="form-floating mb-3">
@@ -55,22 +57,22 @@
                 <label for="region">Región</label>
             </div>
 
-            <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-0">
-                <div id="year"></div>
-            </div>
-
-            <div class="form-floating d-none">
+            <div class="form-floating mb-3 d-none">
                 <select class="form-select filter" disabled id="cohort" name="cohort">
                     <option value="null" disabled selected>Cohorte</option>
                 </select>
                 <label for="region">Cohorte</label>
             </div>
 
+            <div class="form-floating pb-5 pt-1 mb-1 mx-4 z-0">
+                <div id="year"></div>
+            </div>
+
             <div class="container">
                 <div class="row justify-content-between align-items-center">
                     <div class="col-auto z-1">
                         <input type="checkbox" class="btn-check filter" id="normalize" name="normalize">
-                        <label class="btn btn-outline-primary" for="normalize">Normalizar</label>
+                        <label class="btn btn-outline-primary" for="normalize">Per capita</label>
                     </div>
                     <div class="col-auto z-1">
                         <a class="btn btn-primary"

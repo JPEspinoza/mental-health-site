@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect
+from flask import Flask, render_template, g, json, Response
 import pandas
 import geopandas
 import sqlite3
@@ -7,30 +7,32 @@ import folium
 
 app = Flask(__name__)
 
-# start database connection
-# we ignore thread conflicts since we are read-only
-conn = sqlite3.connect("file:db.sqlite3?mode=ro", check_same_thread=False, uri=True)
-cursor = conn.cursor()
+def get_db() -> sqlite3.Connection:
+    db: sqlite3.Connection = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect("file:db.sqlite3?mode=ro", uri=True)
+    return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db: sqlite3.Connection = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
 
 @app.route("/")
 def map():
     """
     Generates the filter list and renders the map.html template
     """
+    cursor = get_db().cursor()
 
-    # get list of reports
+    # get list of categories
     # make dict of reports {name: description}
     cursor.execute("""
-    select name, description from report
+    select distinct category from report;
     """)
-    reports = cursor.fetchall()
-    reports = { reports[i][0]: reports[i][1] for i in range(len(reports)) }
-
-    # get list of regions
-    cursor.execute("""
-    select distinct region from commune where region != 'ZONA SIN DEMARCAR';
-    """)
-    regions = [region[0] for region in cursor.fetchall()]
+    categories = cursor.fetchall()
+    categories = [category[0] for category in categories]
 
     # get list of years
     cursor.execute("""
@@ -39,6 +41,12 @@ def map():
     years = cursor.fetchall()
     year_min = years[0][0]
     year_max = years[0][1]
+
+    # get list of regions
+    cursor.execute("""
+    select distinct region from commune where region != 'ZONA SIN DEMARCAR';
+    """)
+    regions = [region[0] for region in cursor.fetchall()]
 
     # generate preview map
     map = cursor.execute("select geometry from commune where region = 'REGION METROPOLITANA DE SANTIAGO'")
@@ -52,14 +60,37 @@ def map():
 
     rendered_map = figure._repr_html_()
 
-    return render_template("map.html", reports=reports, regions=regions, year_min=year_min, year_max=year_max, map=rendered_map)
+    return render_template("map.html", categories=categories, year_min=year_min, year_max=year_max, regions=regions, map=rendered_map)
 
+@app.route('/category=<category>/')
+def category(category: str):
+    cursor = get_db().cursor()
 
-@app.route("/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>")
+    # get list of years
+    cursor.execute("""
+    select min(year), max(year) from data
+    join report on data.report_id = report.id
+    where report.category = ?;
+    """, (category,))
+    years = cursor.fetchall()
+    year_min = years[0][0]
+    year_max = years[0][1]
+
+    cursor.execute("select name, description from report where category = ?", (category,))
+    reports = cursor.fetchall()
+
+    return json.dumps({
+        "reports": reports,
+        "year_min": year_min,
+        "year_max": year_max
+    })
+
+@app.route("/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>/")
 def map_report(report: str, region: str, year_low: int, year_high: int, normalize: str):
     """
     Called from map.html, used to generate the map which is sent dynamically to the client
     """
+    cursor = get_db().cursor()
 
     cursor.execute("""
     select commune.name, commune.population, sum(data.value), data.cohort, commune.geometry
@@ -93,7 +124,7 @@ def map_report(report: str, region: str, year_low: int, year_high: int, normaliz
     # create total and per capita column per name
     total = data[["name", "count", "population"]].groupby('name').sum()
     total.rename(columns={'count': 'Total'}, inplace=True)
-    total['Per capita'] = total['Total'] * 10000 / total['population']
+    total['Cada 10.000 personas'] = total['Total'] * 10000 / total['population']
     total.drop(columns='population', inplace=True)
 
     # explode cohorts into columns
@@ -112,7 +143,7 @@ def map_report(report: str, region: str, year_low: int, year_high: int, normaliz
     geodataframe = geopandas.GeoDataFrame(data=data, geometry='geometry', crs='EPSG:3857') # type: ignore
 
     if(normalize == "true"):
-        color_column = "Per capita"
+        color_column = "Cada 10.000 personas"
     else:
         color_column = "Total"
 
@@ -125,4 +156,22 @@ def map_report(report: str, region: str, year_low: int, year_high: int, normaliz
     )
     figure.add_child(map)
 
-    return figure._repr_html_()
+    # get list of cohorts
+    cursor.execute("""
+    select distinct data.cohort
+    from data
+    join report on data.report_id = report.id
+    join commune on data.commune_id = commune.id
+    where
+        report.name = ? and
+        data.year >= ? and
+        data.year <= ? and
+        commune.region = ?
+    """, (report, year_low, year_high, region))
+    cohorts = cursor.fetchall()
+    cohorts = [x[0] for x in cohorts]
+
+    return json.dumps({
+        "map": figure._repr_html_(),
+        "cohorts": cohorts
+    })

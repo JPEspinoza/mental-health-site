@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r /requirements.txt
 
 EXPOSE 9000
 
-CMD ["gunicorn", "--bind", ":9000", "app:app", "--log-level", "info", "-w", "8"]
+CMD ["gunicorn", "--bind", ":9000", "app:app", "--log-level", "info", "-w", "4"]
