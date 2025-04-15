@@ -85,12 +85,55 @@ def category(category: str):
         "year_max": year_max
     })
 
-@app.route("/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>/")
-def map_report(report: str, region: str, year_low: int, year_high: int, normalize: str):
+def establishment():
+    pass
+
+@app.route("/report=<report>/region=<region>/year_low=<year_low>/year_high=<year_high>/normalize=<normalize>/establishment=<establishment>")
+def map_report(report: str, region: str, year_low: int, year_high: int, normalize: str, establishment: str):
     """
     Called from map.html, used to generate the map which is sent dynamically to the client
     """
     cursor = get_db().cursor()
+
+    if(establishment == "true"):
+        cursor.execute("""
+            SELECT establishment.name, establishment.lat, establishment.lon, sum(data.value)
+            FROM establishment
+            JOIN commune ON establishment.commune_id = commune.id
+            LEFT JOIN data ON data.establishment_id = establishment.id
+            JOIN report ON data.report_id = report.id
+            WHERE commune.region = 'REGION METROPOLITANA DE SANTIAGO'
+            AND report.name = 'IngressByMonth'
+            group by establishment.id;
+    
+        """)
+
+        establishments = cursor.fetchall()
+
+        establishments = pandas.DataFrame(establishments, columns=["name", "lat", "lon", "value"])
+        establishments = geopandas.GeoDataFrame(
+            data=establishments, 
+            geometry=geopandas.points_from_xy(
+                establishments['lon'],
+                establishments['lat'],
+                crs="EPSG:4326"
+            )
+        )
+
+        figure = folium.Figure(width="100%", height="100%")
+        map = establishments.explore(
+            column="value",
+            cmap='hsv', 
+            legend=True,
+            style_kwds={"style_function":lambda x: {"radius": 5}}
+        )
+        figure.add_child(map)
+
+        return json.dumps({
+            "map": figure._repr_html_(),
+        })
+
+    # if not establishment mode
 
     cursor.execute("""
     select commune.name, commune.population, sum(data.value), data.cohort, commune.geometry
@@ -156,22 +199,6 @@ def map_report(report: str, region: str, year_low: int, year_high: int, normaliz
     )
     figure.add_child(map)
 
-    # get list of cohorts
-    cursor.execute("""
-    select distinct data.cohort
-    from data
-    join report on data.report_id = report.id
-    join commune on data.commune_id = commune.id
-    where
-        report.name = ? and
-        data.year >= ? and
-        data.year <= ? and
-        commune.region = ?
-    """, (report, year_low, year_high, region))
-    cohorts = cursor.fetchall()
-    cohorts = [x[0] for x in cohorts]
-
     return json.dumps({
         "map": figure._repr_html_(),
-        "cohorts": cohorts
     })

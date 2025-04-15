@@ -12,7 +12,9 @@
 ## Running locally
 Don't want to run on docker for development?
 
-`python3.13 -m venv venv`
-`source venv/bin/activate.fish`
-`pip install -r requirements.txt`
-`gunicorn app:app --chdir src --bind localhost:9000 --log-level debug --reload`
+```bash
+python3.13 -m venv venv
+source venv/bin/activate.fish
+pip install -r requirements.txt
+gunicorn app:app --chdir src --bind localhost:9000 --log-level debug --reload
+```

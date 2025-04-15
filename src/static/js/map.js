@@ -32,6 +32,7 @@ const region_select = document.getElementById('region');
 const category_select = document.getElementById('category')
 const normalize_checkbox = document.getElementById('normalize');
 const map = document.getElementById('map');
+const establishment = document.getElementById('establishment');
 
 const default_option = document.createElement('option');
 default_option.innerHTML = "Seleccionar"
@@ -52,13 +53,14 @@ function update() {
     let year_low = year[0];
     let year_high = year[1];
     let normalize = normalize_checkbox.checked;
+    let establishment_value = establishment.checked;
 
     // show spinner
     map.innerHTML = "";
     map.appendChild(map_spinner);
 
     // make a request to the backend
-    fetch(`/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}/`)
+    fetch(`/report=${report}/region=${region}/year_low=${year_low}/year_high=${year_high}/normalize=${normalize}/establishment=${establishment_value}`)
     .then(response => response.json())
     .then(data => {
         // show map
